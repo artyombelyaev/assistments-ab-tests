@@ -15,7 +15,6 @@ from per_user;
 
 -- name: per_experiment
 select
-    exp_no,
     experiment_id,
     any_value(experiment_name) as experiment_name,
     count(*) as n_rows,
@@ -25,7 +24,7 @@ select
     count(*) filter (where grp = 'E') as n_e
 from exp_students
 group by all
-order by exp_no;
+order by experiment_id;
 
 -- name: xlsx_diff
 -- Сверка значений CSV и xlsx в длинном формате. Ячейки равны, если совпадают как текст (пустая строка = NULL),
@@ -121,7 +120,6 @@ unpivot (
 
 -- name: experienced_by_group
 select
-    exp_no,
     experiment_id,
     count(*) filter (where grp = 'C') as n_c,
     count(*) filter (where grp = 'E') as n_e,
@@ -131,12 +129,12 @@ select
     avg((not experienced)::int) filter (where grp = 'E') as share_not_exp_e
 from exp_students
 group by all
-order by exp_no;
+order by experiment_id;
 
 -- name: experienced_outcomes
 -- Кто не увидел условие: бросил раньше или решил без ошибок.
 select
-    exp_no,
+    experiment_id,
     experienced,
     count(*) as n,
     avg(complete) as completion,
@@ -146,11 +144,10 @@ select
 from exp_students
 where experiment_id in (select experiment_id from exp_students where not experienced)
 group by all
-order by exp_no, experienced;
+order by experiment_id, experienced;
 
 -- name: video_check
 select
-    exp_no,
     experiment_id,
     grp,
     count(*) as n,
@@ -160,12 +157,11 @@ select
 from exp_students
 where experiment_id in (select experiment_id from exp_students where could_see_video is not null)
 group by all
-order by exp_no, grp;
+order by experiment_id, grp;
 
 -- name: completion_rule
 -- Минимум задач у завершивших. При правиле «три подряд» он не может быть меньше 3.
 select
-    exp_no,
     experiment_id,
     count(could_see_video) > 0 as has_video_check,
     count(*) filter (where complete = 1) as n_done,
@@ -178,7 +174,7 @@ select
     count(*) filter (where complete = 1 and problem_count = 2 and grp = 'E') as n_done_2_e
 from exp_students
 group by all
-order by exp_no;
+order by experiment_id;
 
 -- name: done_in_2_by_video
 -- Завершившие в экспериментах, где встречается завершение за 2 задачи, по итогу проверки видео.
@@ -203,7 +199,7 @@ group by all
 order by all;
 
 -- name: zero_problems
-select exp_no, experiment_id, complete, experienced, count(*) as n
+select experiment_id, complete, experienced, count(*) as n
 from exp_students
 where problem_count = 0
 group by all

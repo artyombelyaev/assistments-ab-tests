@@ -4,11 +4,8 @@
 create or replace view raw as
 select * from read_csv(getvariable('csv_path'), header = true, nullstr = ['', 'N/A']);
 
--- exp_no - номер эксперимента по возрастанию problem_set. В таком порядке число учеников
--- совпадает с Table 1 статьи о датасете в большинстве строк, поэтому считаю, что это её нумерация.
 create or replace view exp_students as
 select
-    dense_rank() over (order by problem_set) as exp_no,
     problem_set as experiment_id,
     problem_set_name as experiment_name,
     "User ID" as user_id,
