@@ -10,6 +10,7 @@ from . import config
 
 def connect() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
+    con.execute("install excel; load excel")
     con.execute(f"set variable csv_path = '{config.CSV_PATH}'")
     con.execute(f"set variable xlsx_path = '{config.XLSX_PATH}'")
     con.execute(read("staging.sql"))
