@@ -80,7 +80,7 @@ select
         select user_id from exp_students group by user_id having count(distinct grp) > 1
     )) as users_in_both_groups_across_experiments,
     count(*) as same_but_user_groups,
-    coalesce(sum(k), 0) as same_but_user_rows,
+    coalesce(sum(k), 0)::bigint as same_but_user_rows,
     count(*) filter (where prior_problem_count is null) as same_but_user_groups_without_history
 from near;
 
