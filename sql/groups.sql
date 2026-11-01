@@ -114,3 +114,8 @@ order by all;
 select experiment_id, grp, problem_count, log_count
 from exp_students
 where complete = 1;
+
+-- name: completion_rows
+-- Строка на ученика в эксперименте, для бутстрепа по ученикам. Используется только внутри Python.
+select user_id, experiment_id, grp, complete
+from exp_students;
