@@ -2,11 +2,14 @@
 import numpy as np
 import pandas as pd
 
-from . import db, stats
+from . import config, db, stats
 
 N_BOOT = 10_000
 # Группы несравнимы (ноутбук 02), в решения не входит.
 EXCLUDED = 263057
+# В E рано бросившие без пары в C: проверяю устойчивость, добавляя их в C.
+SENSITIVITY_ID = 256027
+MISSING_QUITTERS = 6
 
 
 # Завершившие по группам в одну строку на эксперимент и выборку: all, experienced, video_viewers.
@@ -43,3 +46,16 @@ def trigger_table(con) -> pd.DataFrame:
     g["trigger_share"] = (g.n_exp_c + g.n_exp_e) / (g.n_c + g.n_e)
     g["symmetric"] = ~g.all_experienced & (g.trigger_p >= 0.05)
     return g
+
+
+# Основная выборка и проверка 256027 в том же порядке бутстрепа, что в ноутбуке 03, чтобы интервалы совпадали.
+def decision_inputs(con) -> tuple[pd.DataFrame, pd.Series]:
+    wide = completion_wide(con)
+    groups = trigger_table(con)
+    rng = np.random.default_rng(config.SEED)
+    main = effects(wide[wide["sample"] == "all"], rng)
+    effects(wide[(wide["sample"] == "experienced") & wide.experiment_id.isin(groups[groups.symmetric].experiment_id)], rng)
+    effects(wide[wide["sample"] == "video_viewers"], rng)
+    adj = wide[(wide["sample"] == "all") & (wide.experiment_id == SENSITIVITY_ID)].copy()
+    adj["n_c"] += MISSING_QUITTERS
+    return main, effects(adj, rng).iloc[0]
