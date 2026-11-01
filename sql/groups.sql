@@ -43,7 +43,7 @@ select
 from exp_students;
 
 -- name: completion_by_sample
--- Завершившие по группам на всей выборке и среди увидевших условие.
+-- Завершившие по группам: на всей выборке, среди увидевших условие и среди видящих видео.
 select experiment_id, 'all' as sample, grp, count(*) as n, sum(complete) as n_done
 from exp_students
 group by all
@@ -51,6 +51,11 @@ union all
 select experiment_id, 'experienced' as sample, grp, count(*) as n, sum(complete) as n_done
 from exp_students
 where experienced
+group by all
+union all
+select experiment_id, 'video_viewers' as sample, grp, count(*) as n, sum(complete) as n_done
+from exp_students
+where could_see_video = 1
 group by all
 order by experiment_id, sample, grp;
 
@@ -103,3 +108,9 @@ from exp_students
 where experiment_id = 256027 and not experienced
 group by all
 order by all;
+
+-- name: completers
+-- Число задач до завершения у завершивших, для вторичной метрики. Используется только внутри Python.
+select experiment_id, grp, problem_count, log_count
+from exp_students
+where complete = 1;
