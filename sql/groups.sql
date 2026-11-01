@@ -53,3 +53,53 @@ from exp_students
 where experienced
 group by all
 order by experiment_id, sample, grp;
+
+-- name: early_quitters
+-- Проверка без флага experienced: есть ли в одной группе бросившие раньше, чем самый ранний бросивший в другой.
+with quit as (
+    select experiment_id, grp, problem_count from exp_students where complete = 0
+),
+first_quit as (
+    select
+        experiment_id,
+        min(problem_count) filter (where grp = 'C') as min_c,
+        min(problem_count) filter (where grp = 'E') as min_e
+    from quit
+    group by all
+)
+select
+    experiment_id,
+    count(*) filter (where grp = 'C') as n_quit_c,
+    count(*) filter (where grp = 'E') as n_quit_e,
+    min_c,
+    min_e,
+    count(*) filter (where grp = 'E' and problem_count < min_c) as n_e_before_c,
+    count(*) filter (where grp = 'C' and problem_count < min_e) as n_c_before_e
+from quit
+join first_quit using (experiment_id)
+group by all
+order by experiment_id;
+
+-- name: quit_position
+-- На какой задаче бросили незавершившие, по группам.
+select experiment_id, grp, problem_count, count(*) as n
+from exp_students
+where complete = 0
+group by all
+order by all;
+
+-- name: early_completers_263057
+-- Завершившие 263057 по числу задач: где условие уже сработало в E.
+select grp, problem_count, experienced, count(*) as n
+from exp_students
+where experiment_id = 263057 and complete = 1 and problem_count < 10
+group by all
+order by all;
+
+-- name: not_experienced_256027
+-- Не увидевшие условие в 256027 по группам и завершению.
+select grp, complete, count(*) as n, min(problem_count) as min_problems
+from exp_students
+where experiment_id = 256027 and not experienced
+group by all
+order by all;
