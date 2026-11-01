@@ -53,3 +53,19 @@ def balance_pvalue(x: np.ndarray, treated: np.ndarray, n_perm: int, rng: np.rand
     for _ in range(n_perm):
         hits += np.nanmax(np.abs(_smd_columns(x, rng.permutation(treated)))) >= observed
     return (hits + 1) / (n_perm + 1)
+
+
+# Перцентильный бутстреп для p1 - p0. Для 0/1-метрики пересэмплирование строк группы - это биномиальная выборка
+# с долей группы, поэтому строки не нужны.
+def bootstrap_diff_ci(x1: int, n1: int, x0: int, n0: int, n_boot: int, rng: np.random.Generator,
+                      alpha: float = 0.05) -> tuple[float, float]:
+    diff = rng.binomial(n1, x1 / n1, n_boot) / n1 - rng.binomial(n0, x0 / n0, n_boot) / n0
+    return tuple(np.quantile(diff, [alpha / 2, 1 - alpha / 2]))
+
+
+# Перцентильный бутстреп для разницы средних, строки пересэмплируются внутри каждой группы.
+def bootstrap_mean_diff_ci(a1, a0, n_boot: int, rng: np.random.Generator, alpha: float = 0.05) -> tuple[float, float]:
+    a1, a0 = np.asarray(a1, float), np.asarray(a0, float)
+    m1 = a1[rng.integers(0, len(a1), (n_boot, len(a1)))].mean(axis=1)
+    m0 = a0[rng.integers(0, len(a0), (n_boot, len(a0)))].mean(axis=1)
+    return tuple(np.quantile(m1 - m0, [alpha / 2, 1 - alpha / 2]))

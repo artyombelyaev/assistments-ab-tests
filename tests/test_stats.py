@@ -61,3 +61,35 @@ def test_balance_pvalue_random_split():
     treated = np.repeat([True, False], 100)
     x = rng.normal(size=(200, 3))
     assert stats.balance_pvalue(x, treated, 500, np.random.default_rng(1)) > 0.05
+
+
+def test_bootstrap_diff_ci_degenerate():
+    lo, hi = stats.bootstrap_diff_ci(50, 50, 0, 50, 1000, np.random.default_rng(0))
+    assert lo == hi == 1.0
+
+
+def test_bootstrap_diff_ci_close_to_wald_on_large_sample():
+    boot = stats.bootstrap_diff_ci(12000, 20000, 10000, 20000, 20000, np.random.default_rng(0))
+    wald = stats.diff_ci(12000, 20000, 10000, 20000)
+    assert boot == pytest.approx(wald, abs=0.001)
+
+
+def test_bootstrap_diff_ci_reproducible():
+    a = stats.bootstrap_diff_ci(30, 70, 20, 70, 500, np.random.default_rng(42))
+    b = stats.bootstrap_diff_ci(30, 70, 20, 70, 500, np.random.default_rng(42))
+    assert a == b
+
+
+def test_bootstrap_mean_diff_ci_constant_groups():
+    lo, hi = stats.bootstrap_mean_diff_ci([2.0] * 10, [1.0] * 10, 500, np.random.default_rng(0))
+    assert lo == pytest.approx(1.0) and hi == pytest.approx(1.0)
+
+
+def test_bootstrap_mean_diff_ci_close_to_normal_ci():
+    # средние 1 и 0, sd 1, по 5000 в группе: se = sqrt(2 / 5000) = 0,02
+    rng = np.random.default_rng(0)
+    a1, a0 = rng.normal(1, 1, 5000), rng.normal(0, 1, 5000)
+    lo, hi = stats.bootstrap_mean_diff_ci(a1, a0, 4000, np.random.default_rng(1))
+    d = a1.mean() - a0.mean()
+    assert lo == pytest.approx(d - 1.96 * 0.02, abs=0.003)
+    assert hi == pytest.approx(d + 1.96 * 0.02, abs=0.003)
