@@ -69,3 +69,56 @@ def bootstrap_mean_diff_ci(a1, a0, n_boot: int, rng: np.random.Generator, alpha:
     m1 = a1[rng.integers(0, len(a1), (n_boot, len(a1)))].mean(axis=1)
     m0 = a0[rng.integers(0, len(a0), (n_boot, len(a0)))].mean(axis=1)
     return tuple(np.quantile(m1 - m0, [alpha / 2, 1 - alpha / 2]))
+
+
+# Минимальный обнаружимый эффект для разницы долей при базовой доле p0 (дисперсия обеих групп по p0).
+def mde_two_prop(p0: float, n1: int, n0: int, alpha: float = 0.05, power: float = 0.8) -> float:
+    z = stats.norm.ppf(1 - alpha / 2) + stats.norm.ppf(power)
+    return z * np.sqrt(p0 * (1 - p0) * (1 / n1 + 1 / n0))
+
+
+# Размер каждой группы, чтобы заметить рост доли с p0 до p0 + d (формула Флейса без поправки на непрерывность).
+def n_two_prop(p0: float, d: float, alpha: float = 0.05, power: float = 0.8) -> float:
+    p1 = p0 + d
+    if not 0 < p1 < 1:
+        return np.nan
+    pm = (p0 + p1) / 2
+    za, zb = stats.norm.ppf(1 - alpha / 2), stats.norm.ppf(power)
+    return ((za * np.sqrt(2 * pm * (1 - pm)) + zb * np.sqrt(p0 * (1 - p0) + p1 * (1 - p1))) / d) ** 2
+
+
+# Скорректированные p-value Бенджамини-Хохберга, в исходном порядке.
+def bh_adjust(p) -> np.ndarray:
+    p = np.asarray(p, float)
+    m = len(p)
+    order = np.argsort(p)
+    adj = p[order] * m / np.arange(1, m + 1)
+    adj = np.minimum.accumulate(adj[::-1])[::-1]
+    out = np.empty(m)
+    out[order] = np.minimum(adj, 1)
+    return out
+
+
+def bonferroni_adjust(p) -> np.ndarray:
+    p = np.asarray(p, float)
+    return np.minimum(p * len(p), 1)
+
+
+# Мета-анализ со случайными эффектами по DerSimonian-Laird.
+def dl_meta(effects, variances, alpha: float = 0.05) -> dict:
+    y, v = np.asarray(effects, float), np.asarray(variances, float)
+    w = 1 / v
+    fixed = np.sum(w * y) / w.sum()
+    q = np.sum(w * (y - fixed) ** 2)
+    df = len(y) - 1
+    tau2 = max(0.0, (q - df) / (w.sum() - np.sum(w ** 2) / w.sum()))
+    w_re = 1 / (v + tau2)
+    est = np.sum(w_re * y) / w_re.sum()
+    se = np.sqrt(1 / w_re.sum())
+    z = stats.norm.ppf(1 - alpha / 2)
+    # интервал предсказания: где с вероятностью 95% окажется истинный эффект нового похожего эксперимента
+    t = stats.t.ppf(1 - alpha / 2, len(y) - 2)
+    half = t * np.sqrt(tau2 + se ** 2)
+    return {"estimate": est, "se": se, "ci": (est - z * se, est + z * se), "tau2": tau2, "q": q,
+            "q_p": stats.chi2.sf(q, df), "i2": max(0.0, (q - df) / q) if q > 0 else 0.0,
+            "pi": (est - half, est + half)}

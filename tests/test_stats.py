@@ -93,3 +93,48 @@ def test_bootstrap_mean_diff_ci_close_to_normal_ci():
     d = a1.mean() - a0.mean()
     assert lo == pytest.approx(d - 1.96 * 0.02, abs=0.003)
     assert hi == pytest.approx(d + 1.96 * 0.02, abs=0.003)
+
+
+def test_mde_two_prop_known_value():
+    # (1,959964 + 0,841621) * sqrt(0,25 * 0,02)
+    assert stats.mde_two_prop(0.5, 100, 100) == pytest.approx(0.198102, abs=1e-5)
+
+
+def test_n_two_prop_known_value():
+    # 50% против 60%: классический ответ 388 в группе (387,3 до округления вверх)
+    assert stats.n_two_prop(0.5, 0.1) == pytest.approx(387.3, abs=0.1)
+
+
+def test_n_two_prop_above_ceiling():
+    assert np.isnan(stats.n_two_prop(0.98, 0.03))
+
+
+def test_bh_adjust_known_value():
+    adj = stats.bh_adjust([0.01, 0.04, 0.03, 0.2])
+    assert adj == pytest.approx([0.04, 0.04 * 4 / 3, 0.04 * 4 / 3, 0.2])
+
+
+def test_bh_adjust_matches_scipy():
+    from scipy.stats import false_discovery_control
+    p = np.random.default_rng(0).uniform(size=30) ** 2
+    assert stats.bh_adjust(p) == pytest.approx(false_discovery_control(p))
+
+
+def test_bonferroni_adjust():
+    assert stats.bonferroni_adjust([0.01, 0.5]) == pytest.approx([0.02, 1.0])
+
+
+def test_dl_meta_known_value():
+    # Q = 4 + 4 = 8, tau2 = (8 - 1) / (2 - 1) = 7, веса 1/8, оценка 2, se = 2, I2 = 7/8
+    r = stats.dl_meta([0, 4], [1, 1])
+    assert r["tau2"] == pytest.approx(7)
+    assert r["estimate"] == pytest.approx(2)
+    assert r["se"] == pytest.approx(2)
+    assert r["i2"] == pytest.approx(0.875)
+
+
+def test_dl_meta_homogeneous_is_fixed_effect():
+    r = stats.dl_meta([1.0, 1.0, 1.0], [0.5, 1.0, 2.0])
+    assert r["tau2"] == 0 and r["i2"] == 0
+    assert r["estimate"] == pytest.approx(1.0)
+    assert r["se"] == pytest.approx(np.sqrt(1 / (2 + 1 + 0.5)))
